@@ -2,12 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 
-// Import configurations
-import { connectDB } from './config/database.js';
+// Import Firestore config
+import { initializeFirestore } from './config/firestore.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -23,34 +23,47 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Connect to database
-connectDB();
+// Initialize Firestore
+initializeFirestore();
 
-// Middleware
-app.use(helmet()); // Security headers
-app.use(compression()); // Compress responses
-app.use(morgan('dev')); // Logging
-app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || '*',
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true
-}));
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+};
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: 'Muitas requisições deste IP, por favor tente novamente mais tarde.'
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100 // limit each IP to 100 requests per windowMs
 });
 app.use('/api/', limiter);
+
+// Body parser middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Compression middleware
+app.use(compression());
+
+// Logging middleware
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
-    status: 'OK',
-    message: 'Pare! API está funcionando',
-    timestamp: new Date().toISOString()
+    success: true,
+    message: 'Pare! API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -69,9 +82,10 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error:', err);
+  
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Erro interno do servidor',
@@ -81,9 +95,9 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN || '*'}`);
 });
 
 export default app;
