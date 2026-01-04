@@ -1,4 +1,13 @@
 import express from 'express';
+import {
+  getModules,
+  getModule,
+  createModule,
+  checkIn,
+  recordRelapse,
+  deleteModule,
+  getModuleStats
+} from '../controllers/module.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -6,20 +15,16 @@ const router = express.Router();
 // Protect all module routes
 router.use(protect);
 
-// TODO: Implement module routes
-// GET /api/modules - Get all user modules
-// POST /api/modules - Create new module
-// GET /api/modules/:id - Get specific module
-// PUT /api/modules/:id - Update module
-// DELETE /api/modules/:id - Delete module
-// POST /api/modules/:id/relapse - Record a relapse
-// POST /api/modules/:id/checkin - Manual check-in
+router.route('/')
+  .get(getModules)
+  .post(createModule);
 
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Modules endpoint (TODO)'
-  });
-});
+router.route('/:id')
+  .get(getModule)
+  .delete(deleteModule);
+
+router.put('/:id/checkin', checkIn);
+router.post('/:id/relapse', recordRelapse);
+router.get('/:id/stats', getModuleStats);
 
 export default router;

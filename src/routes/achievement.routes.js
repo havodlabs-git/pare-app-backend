@@ -1,4 +1,11 @@
 import express from 'express';
+import {
+  getAllAchievements,
+  getUserAchievements,
+  getAchievementsStatus,
+  checkAndUnlockAchievements,
+  initializeAchievements
+} from '../controllers/achievement.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -6,16 +13,10 @@ const router = express.Router();
 // Protect all achievement routes
 router.use(protect);
 
-// TODO: Implement achievement routes
-// GET /api/achievements - Get all achievements
-// GET /api/achievements/user - Get user's unlocked achievements
-// POST /api/achievements/unlock/:id - Unlock an achievement
-
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Achievements endpoint (TODO)'
-  });
-});
+router.get('/', getAllAchievements);
+router.get('/user', getUserAchievements);
+router.get('/status', getAchievementsStatus);
+router.post('/check/:moduleId', checkAndUnlockAchievements);
+router.post('/initialize', initializeAchievements);
 
 export default router;
