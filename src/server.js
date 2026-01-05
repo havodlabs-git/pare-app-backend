@@ -29,7 +29,8 @@ initializeFirestore();
 // Security middleware - configurado para permitir CORS
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  contentSecurityPolicy: false // Desabilitar CSP para permitir requisições cross-origin
 }));
 
 // CORS configuration - permitir todas as origens em desenvolvimento
