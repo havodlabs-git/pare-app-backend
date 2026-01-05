@@ -26,15 +26,23 @@ const PORT = process.env.PORT || 8080;
 // Initialize Firestore
 initializeFirestore();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - configurado para permitir CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
+}));
 
-// CORS configuration
+// CORS configuration - permitir todas as origens em desenvolvimento
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: true, // Permite qualquer origem
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
+
+// Preflight requests
+app.options('*', cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
