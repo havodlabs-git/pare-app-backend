@@ -14,22 +14,18 @@ import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// Protect all forum routes
-router.use(protect);
-
+// Public routes (no auth required)
 router.get('/stats', getForumStats);
+router.get('/posts', getPosts);
+router.get('/posts/:id', getPost);
 
-router.route('/posts')
-  .get(getPosts)
-  .post(createPost);
+// Protected routes (auth required)
+router.post('/posts', protect, createPost);
+router.put('/posts/:id', protect, updatePost);
+router.delete('/posts/:id', protect, deletePost);
 
-router.route('/posts/:id')
-  .get(getPost)
-  .put(updatePost)
-  .delete(deletePost);
-
-router.post('/posts/:id/like', toggleLike);
-router.post('/posts/:id/reply', addReply);
-router.delete('/posts/:id/reply/:replyId', deleteReply);
+router.post('/posts/:id/like', protect, toggleLike);
+router.post('/posts/:id/reply', protect, addReply);
+router.delete('/posts/:id/reply/:replyId', protect, deleteReply);
 
 export default router;
