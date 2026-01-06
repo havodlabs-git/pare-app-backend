@@ -81,6 +81,47 @@ export const restrictTo = (...plans) => {
 };
 
 // Middleware for professional authentication
+// Middleware for admin authentication
+export const protectAdmin = async (req, res, next) => {
+  try {
+    // Check if user is admin
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autorizado'
+      });
+    }
+
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(req.user.id).get();
+    
+    if (!userDoc.exists) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+    }
+
+    const user = userDoc.data();
+    
+    if (!user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado. Apenas administradores podem acessar este recurso.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Admin auth middleware error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro na autenticação de admin',
+      error: error.message
+    });
+  }
+};
+
 export const protectProfessional = async (req, res, next) => {
   try {
     let token;

@@ -1,4 +1,5 @@
 import { getFirestore } from '../config/firestore.js';
+import zoomService from '../services/zoom.service.js';
 
 // @desc    Get list of available professionals
 // @route   GET /api/appointments/professionals
@@ -374,23 +375,68 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
-// Helper function to create Zoom meeting (placeholder)
+// Helper function to create Zoom meeting
 async function createZoomMeeting({ topic, startTime, duration, hostEmail }) {
-  // TODO: Implement actual Zoom API integration
-  // For now, return placeholder data
-  const meetingId = `zoom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  return {
-    id: meetingId,
-    joinUrl: `https://zoom.us/j/${meetingId}`,
-    startUrl: `https://zoom.us/s/${meetingId}`,
-    password: Math.random().toString(36).substr(2, 6).toUpperCase()
-  };
+  try {
+    // Check if Zoom is configured
+    const isConfigured = await zoomService.isConfigured();
+    
+    if (!isConfigured) {
+      // Return placeholder if Zoom not configured
+      const meetingId = `placeholder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      return {
+        id: meetingId,
+        joinUrl: `https://zoom.us/j/${meetingId}`,
+        startUrl: `https://zoom.us/s/${meetingId}`,
+        password: Math.random().toString(36).substr(2, 6).toUpperCase()
+      };
+    }
+
+    // Create real Zoom meeting
+    const meeting = await zoomService.createMeeting({
+      topic,
+      startTime: startTime.toISOString(),
+      duration,
+      hostEmail
+    });
+
+    return {
+      id: meeting.meetingId,
+      joinUrl: meeting.joinUrl,
+      startUrl: meeting.startUrl,
+      password: meeting.password
+    };
+  } catch (error) {
+    console.error('Error creating Zoom meeting:', error);
+    // Fallback to placeholder on error
+    const meetingId = `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return {
+      id: meetingId,
+      joinUrl: `https://zoom.us/j/${meetingId}`,
+      startUrl: `https://zoom.us/s/${meetingId}`,
+      password: Math.random().toString(36).substr(2, 6).toUpperCase()
+    };
+  }
 }
 
-// Helper function to cancel Zoom meeting (placeholder)
+// Helper function to cancel Zoom meeting
 async function cancelZoomMeeting(meetingId) {
-  // TODO: Implement actual Zoom API integration
-  console.log(`Cancelling Zoom meeting: ${meetingId}`);
-  return true;
+  try {
+    // Check if it's a real Zoom meeting (not placeholder)
+    if (meetingId.startsWith('placeholder_') || meetingId.startsWith('fallback_') || meetingId.startsWith('zoom_')) {
+      console.log(`Skipping cancellation for placeholder meeting: ${meetingId}`);
+      return true;
+    }
+
+    const isConfigured = await zoomService.isConfigured();
+    if (!isConfigured) {
+      return true;
+    }
+
+    await zoomService.deleteMeeting(meetingId);
+    return true;
+  } catch (error) {
+    console.error('Error cancelling Zoom meeting:', error);
+    return false;
+  }
 }

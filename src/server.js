@@ -18,6 +18,7 @@ import forumRoutes from './routes/forum.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import appointmentRoutes from './routes/appointment.routes.js';
 import professionalRoutes from './routes/professional.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -88,6 +89,7 @@ app.use('/api/forum', forumRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/professionals', professionalRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
