@@ -47,17 +47,21 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
+    // Create user with 7-day trial
+    const now = new Date();
+    const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+    
     const userData = {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
       plan: 'free',
       planExpiresAt: null,
+      trialEndsAt,
       isActive: true,
-      lastLogin: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date()
+      lastLogin: now,
+      createdAt: now,
+      updatedAt: now
     };
 
     const userDoc = await usersRef.add(userData);
@@ -142,6 +146,24 @@ export const login = async (req, res) => {
 
     const token = generateToken(user.id);
 
+    // Check trial status
+    const now = new Date();
+    let trialInfo = null;
+    let needsUpgrade = false;
+    
+    if (user.plan === 'free' && user.trialEndsAt) {
+      const trialEndsAt = user.trialEndsAt.toDate ? user.trialEndsAt.toDate() : new Date(user.trialEndsAt);
+      const isTrialExpired = now > trialEndsAt;
+      const daysRemaining = Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)));
+      
+      trialInfo = {
+        isActive: !isTrialExpired,
+        endsAt: trialEndsAt,
+        daysRemaining
+      };
+      needsUpgrade = isTrialExpired;
+    }
+
     res.status(200).json({
       success: true,
       message: 'Login realizado com sucesso',
@@ -150,7 +172,9 @@ export const login = async (req, res) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          plan: user.plan
+          plan: user.plan,
+          trial: trialInfo,
+          needsUpgrade
         },
         token
       }

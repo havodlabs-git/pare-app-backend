@@ -15,6 +15,9 @@ import userRoutes from './routes/user.routes.js';
 import moduleRoutes from './routes/module.routes.js';
 import achievementRoutes from './routes/achievement.routes.js';
 import forumRoutes from './routes/forum.routes.js';
+import subscriptionRoutes from './routes/subscription.routes.js';
+import appointmentRoutes from './routes/appointment.routes.js';
+import professionalRoutes from './routes/professional.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -82,6 +85,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/forum', forumRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/professionals', professionalRoutes);
 
 // 404 handler
 app.use((req, res) => {

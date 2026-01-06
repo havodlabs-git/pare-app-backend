@@ -79,3 +79,72 @@ export const restrictTo = (...plans) => {
     next();
   };
 };
+
+// Middleware for professional authentication
+export const protectProfessional = async (req, res, next) => {
+  try {
+    let token;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autorizado. Token não fornecido.'
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+      // Check if token is for professional
+      if (decoded.type !== 'professional') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido para profissional'
+        });
+      }
+
+      const db = getFirestore();
+      const professionalDoc = await db.collection('professionals').doc(decoded.id).get();
+
+      if (!professionalDoc.exists) {
+        return res.status(401).json({
+          success: false,
+          message: 'Profissional não encontrado'
+        });
+      }
+
+      const professional = { id: professionalDoc.id, ...professionalDoc.data() };
+
+      if (!professional.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Conta desativada'
+        });
+      }
+
+      req.professional = {
+        id: professional.id,
+        email: professional.email,
+        name: professional.name
+      };
+
+      next();
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token inválido ou expirado'
+      });
+    }
+  } catch (error) {
+    console.error('Professional auth middleware error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro na autenticação',
+      error: error.message
+    });
+  }
+};
