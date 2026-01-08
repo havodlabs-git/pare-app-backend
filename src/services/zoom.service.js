@@ -1,4 +1,4 @@
-import { db } from '../config/firebase.js';
+import { getFirestore } from '../config/firestore.js';
 
 // Zoom API Service
 // Uses Server-to-Server OAuth for creating meetings
@@ -9,8 +9,14 @@ class ZoomService {
     this.tokenExpiry = null;
   }
 
+  // Get Firestore instance
+  getDb() {
+    return getFirestore();
+  }
+
   // Get Zoom config from Firestore
   async getConfig() {
+    const db = this.getDb();
     const configDoc = await db.collection('config').doc('zoom').get();
     if (!configDoc.exists) {
       throw new Error('Zoom não configurado');
@@ -20,6 +26,7 @@ class ZoomService {
 
   // Save Zoom config to Firestore
   async saveConfig(accountId, clientId, clientSecret) {
+    const db = this.getDb();
     await db.collection('config').doc('zoom').set({
       accountId,
       clientId,
