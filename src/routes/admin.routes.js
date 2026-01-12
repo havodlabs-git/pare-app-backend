@@ -243,7 +243,28 @@ router.put('/posts/:id', async (req, res) => {
 router.delete('/posts/:id', async (req, res) => {
   try {
     const db = getFirestore();
-    await db.collection('forum_posts').doc(req.params.id).delete();
+    const postRef = db.collection('forum_posts').doc(req.params.id);
+    
+    // Delete all replies first
+    const repliesSnapshot = await postRef.collection('replies').get();
+    const batch = db.batch();
+    repliesSnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    batch.delete(postRef);
+    await batch.commit();
+    
+    // Update forum stats
+    const statsRef = db.collection('forum_stats').doc('global');
+    const statsDoc = await statsRef.get();
+    if (statsDoc.exists) {
+      const currentPosts = statsDoc.data().totalPosts || 0;
+      await statsRef.update({
+        totalPosts: Math.max(0, currentPosts - 1),
+        updatedAt: new Date()
+      });
+    }
+    
     res.json({ success: true, message: 'Post removido com sucesso' });
   } catch (error) {
     console.error('Delete post error:', error);
@@ -523,6 +544,41 @@ router.post('/zoom/test', async (req, res) => {
   } catch (error) {
     console.error('Test Zoom connection error:', error);
     res.status(500).json({ success: false, message: 'Erro ao testar conexão com Zoom' });
+  }
+});
+
+// ==================== SINCRONIZAR ESTATÍSTICAS ====================
+router.post('/sync-forum-stats', async (req, res) => {
+  try {
+    const db = getFirestore();
+    
+    // Contar posts reais
+    const postsSnapshot = await db.collection('forum_posts').get();
+    const totalPosts = postsSnapshot.size;
+    
+    // Contar replies reais
+    let totalReplies = 0;
+    for (const postDoc of postsSnapshot.docs) {
+      const repliesSnapshot = await postDoc.ref.collection('replies').get();
+      totalReplies += repliesSnapshot.size;
+    }
+    
+    // Atualizar stats
+    const statsRef = db.collection('forum_stats').doc('global');
+    await statsRef.set({
+      totalPosts,
+      totalReplies,
+      updatedAt: new Date()
+    }, { merge: true });
+    
+    res.json({
+      success: true,
+      message: 'Estatísticas sincronizadas com sucesso',
+      data: { totalPosts, totalReplies }
+    });
+  } catch (error) {
+    console.error('Sync forum stats error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao sincronizar estatísticas' });
   }
 });
 
