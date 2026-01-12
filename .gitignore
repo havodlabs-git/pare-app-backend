@@ -36,3 +36,4 @@ coverage/
 # Build
 dist/
 build/
+service-account.json
