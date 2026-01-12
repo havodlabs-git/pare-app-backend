@@ -1,6 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/auth.middleware.js';
-import { protectProfessional } from '../middleware/professional.middleware.js';
+import { protect, protectProfessional } from '../middleware/auth.middleware.js';
 import {
   startConversation,
   getUserConversations,
