@@ -1,5 +1,5 @@
 import { getFirestore } from '../config/firestore.js';
-import zoomService from '../services/zoom.service.js';
+// Jitsi Meet is used for video calls - no API key needed
 
 // @desc    Get list of available professionals
 // @route   GET /api/appointments/professionals
@@ -153,12 +153,10 @@ export const createAppointment = async (req, res) => {
       });
     }
 
-    // Create Zoom meeting (placeholder - will be implemented with Zoom API)
-    const zoomMeeting = await createZoomMeeting({
+    // Create Jitsi Meet room (open source, no API key needed)
+    const jitsiMeeting = createJitsiMeeting({
       topic: `Sessão com ${professional.name}`,
-      startTime: appointmentTime,
-      duration: 50,
-      hostEmail: professional.email
+      startTime: appointmentTime
     });
 
     // Create appointment
@@ -170,9 +168,10 @@ export const createAppointment = async (req, res) => {
       duration: 50,
       status: 'scheduled',
       notes: notes || '',
-      zoomMeetingId: zoomMeeting.id,
-      zoomJoinUrl: zoomMeeting.joinUrl,
-      zoomStartUrl: zoomMeeting.startUrl,
+      meetingId: jitsiMeeting.id,
+      meetingJoinUrl: jitsiMeeting.joinUrl,
+      zoomJoinUrl: jitsiMeeting.joinUrl, // Keep for backward compatibility
+      zoomStartUrl: jitsiMeeting.startUrl,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -349,9 +348,9 @@ export const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Cancel Zoom meeting (placeholder)
-    if (appointment.zoomMeetingId) {
-      await cancelZoomMeeting(appointment.zoomMeetingId);
+    // Cancel meeting (Jitsi rooms expire automatically)
+    if (appointment.meetingId || appointment.zoomMeetingId) {
+      cancelMeeting(appointment.meetingId || appointment.zoomMeetingId);
     }
 
     // Update appointment status
@@ -375,68 +374,29 @@ export const cancelAppointment = async (req, res) => {
   }
 };
 
-// Helper function to create Zoom meeting
-async function createZoomMeeting({ topic, startTime, duration, hostEmail }) {
-  try {
-    // Check if Zoom is configured
-    const isConfigured = await zoomService.isConfigured();
-    
-    if (!isConfigured) {
-      // Return placeholder if Zoom not configured
-      const meetingId = `placeholder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      return {
-        id: meetingId,
-        joinUrl: `https://zoom.us/j/${meetingId}`,
-        startUrl: `https://zoom.us/s/${meetingId}`,
-        password: Math.random().toString(36).substr(2, 6).toUpperCase()
-      };
-    }
-
-    // Create real Zoom meeting
-    const meeting = await zoomService.createMeeting({
-      topic,
-      startTime: startTime.toISOString(),
-      duration,
-      hostEmail
-    });
-
-    return {
-      id: meeting.meetingId,
-      joinUrl: meeting.joinUrl,
-      startUrl: meeting.startUrl,
-      password: meeting.password
-    };
-  } catch (error) {
-    console.error('Error creating Zoom meeting:', error);
-    // Fallback to placeholder on error
-    const meetingId = `fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    return {
-      id: meetingId,
-      joinUrl: `https://zoom.us/j/${meetingId}`,
-      startUrl: `https://zoom.us/s/${meetingId}`,
-      password: Math.random().toString(36).substr(2, 6).toUpperCase()
-    };
-  }
+// Helper function to create Jitsi Meet room (open source, no API key needed)
+function createJitsiMeeting({ topic, startTime }) {
+  // Generate a unique room name based on timestamp and random string
+  const timestamp = startTime.getTime();
+  const randomStr = Math.random().toString(36).substr(2, 9);
+  const roomName = `PareApp-${timestamp}-${randomStr}`;
+  
+  // Jitsi Meet is completely free and open source
+  // No API configuration needed
+  const joinUrl = `https://meet.jit.si/${roomName}`;
+  
+  return {
+    id: roomName,
+    joinUrl: joinUrl,
+    startUrl: joinUrl, // Same URL for host and participants in Jitsi
+    password: null // Jitsi rooms are open by default, can be locked in the meeting
+  };
 }
 
-// Helper function to cancel Zoom meeting
-async function cancelZoomMeeting(meetingId) {
-  try {
-    // Check if it's a real Zoom meeting (not placeholder)
-    if (meetingId.startsWith('placeholder_') || meetingId.startsWith('fallback_') || meetingId.startsWith('zoom_')) {
-      console.log(`Skipping cancellation for placeholder meeting: ${meetingId}`);
-      return true;
-    }
-
-    const isConfigured = await zoomService.isConfigured();
-    if (!isConfigured) {
-      return true;
-    }
-
-    await zoomService.deleteMeeting(meetingId);
-    return true;
-  } catch (error) {
-    console.error('Error cancelling Zoom meeting:', error);
-    return false;
-  }
+// Helper function to cancel meeting (Jitsi rooms expire automatically)
+function cancelMeeting(meetingId) {
+  // Jitsi Meet rooms are ephemeral and don't need explicit deletion
+  // They automatically close when all participants leave
+  console.log(`Meeting ${meetingId} cancelled - Jitsi room will expire automatically`);
+  return true;
 }
