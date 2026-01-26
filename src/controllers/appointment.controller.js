@@ -441,7 +441,10 @@ function createJitsiMeeting({ topic, startTime }) {
   
   // Jitsi Meet is completely free and open source
   // No API configuration needed
-  const joinUrl = `https://meet.jit.si/${roomName}`;
+  // Using 8x8.vc which is Jitsi's official hosted service without lobby restrictions
+  // Parameters: config.prejoinPageEnabled=false disables the pre-join screen
+  const baseUrl = 'https://8x8.vc';
+  const joinUrl = `${baseUrl}/${roomName}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
   
   return {
     id: roomName,
