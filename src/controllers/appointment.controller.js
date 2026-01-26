@@ -83,7 +83,65 @@ export const getProfessionalAvailability = async (req, res) => {
     // Generate available time slots based on professional's schedule
     const dayOfWeek = new Date(date).getDay();
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const daySchedule = professional.schedule?.[dayNames[dayOfWeek]] || [];
+    
+    // Default schedule if professional hasn't configured their own
+    const defaultSchedule = {
+      monday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 },
+        { start: '14:00', duration: 50 },
+        { start: '15:00', duration: 50 },
+        { start: '16:00', duration: 50 },
+        { start: '17:00', duration: 50 }
+      ],
+      tuesday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 },
+        { start: '14:00', duration: 50 },
+        { start: '15:00', duration: 50 },
+        { start: '16:00', duration: 50 },
+        { start: '17:00', duration: 50 }
+      ],
+      wednesday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 },
+        { start: '14:00', duration: 50 },
+        { start: '15:00', duration: 50 },
+        { start: '16:00', duration: 50 },
+        { start: '17:00', duration: 50 }
+      ],
+      thursday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 },
+        { start: '14:00', duration: 50 },
+        { start: '15:00', duration: 50 },
+        { start: '16:00', duration: 50 },
+        { start: '17:00', duration: 50 }
+      ],
+      friday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 },
+        { start: '14:00', duration: 50 },
+        { start: '15:00', duration: 50 },
+        { start: '16:00', duration: 50 },
+        { start: '17:00', duration: 50 }
+      ],
+      saturday: [
+        { start: '09:00', duration: 50 },
+        { start: '10:00', duration: 50 },
+        { start: '11:00', duration: 50 }
+      ],
+      sunday: [] // No appointments on Sunday
+    };
+    
+    // Use professional's schedule if available, otherwise use default
+    const schedule = professional.schedule || defaultSchedule;
+    const daySchedule = schedule[dayNames[dayOfWeek]] || [];
 
     const availableSlots = [];
     
