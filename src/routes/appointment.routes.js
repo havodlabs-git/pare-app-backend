@@ -15,10 +15,10 @@ const router = express.Router();
 router.get('/professionals', protect, getProfessionals);
 router.get('/professionals/:id/availability', protect, getProfessionalAvailability);
 
-// Elite plan only routes
-router.post('/create', protect, restrictTo('elite'), createAppointment);
-router.get('/my-appointments', protect, restrictTo('elite'), getUserAppointments);
-router.get('/:id', protect, restrictTo('elite'), getAppointmentDetails);
-router.post('/:id/cancel', protect, restrictTo('elite'), cancelAppointment);
+// Premium and Elite plan routes (sessions with psychologists)
+router.post('/create', protect, restrictTo('premium', 'elite'), createAppointment);
+router.get('/my-appointments', protect, restrictTo('premium', 'elite'), getUserAppointments);
+router.get('/:id', protect, restrictTo('premium', 'elite'), getAppointmentDetails);
+router.post('/:id/cancel', protect, restrictTo('premium', 'elite'), cancelAppointment);
 
 export default router;
