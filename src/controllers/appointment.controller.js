@@ -292,7 +292,7 @@ export const getUserAppointments = async (req, res) => {
         scheduledAt: data.scheduledAt.toDate(),
         duration: data.duration,
         status: data.status,
-        zoomJoinUrl: data.zoomJoinUrl,
+        meetingUrl: data.meetingJoinUrl || data.zoomJoinUrl,
         notes: data.notes
       };
     });
