@@ -312,6 +312,8 @@ export const getProfessionalAppointments = async (req, res) => {
         duration: data.duration,
         status: data.status,
         notes: data.notes,
+        meetingUrl: data.meetingJoinUrl || data.zoomJoinUrl,
+        meetingJoinUrl: data.meetingJoinUrl,
         zoomStartUrl: data.zoomStartUrl,
         zoomJoinUrl: data.zoomJoinUrl
       };
