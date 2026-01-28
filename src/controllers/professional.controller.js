@@ -276,8 +276,11 @@ export const updateSchedule = async (req, res) => {
 // @access  Private (Professional)
 export const getProfessionalAppointments = async (req, res) => {
   try {
-    const { status, date } = req.query;
+    const { status, date, month } = req.query;
     const db = getFirestore();
+
+    console.log('[DEBUG] getProfessionalAppointments - Professional ID:', req.professional.id);
+    console.log('[DEBUG] getProfessionalAppointments - Query params:', { status, date, month });
 
     let query = db.collection('appointments').where('professionalId', '==', req.professional.id);
 
@@ -292,9 +295,19 @@ export const getProfessionalAppointments = async (req, res) => {
       endOfDay.setHours(23, 59, 59, 999);
       
       query = query.where('scheduledAt', '>=', startOfDay).where('scheduledAt', '<=', endOfDay);
+    } else if (month) {
+      // Filter by month (format: YYYY-MM)
+      const [year, monthNum] = month.split('-').map(Number);
+      const startOfMonth = new Date(year, monthNum - 1, 1);
+      const endOfMonth = new Date(year, monthNum, 0, 23, 59, 59, 999);
+      
+      console.log('[DEBUG] Month filter:', { startOfMonth, endOfMonth });
+      query = query.where('scheduledAt', '>=', startOfMonth).where('scheduledAt', '<=', endOfMonth);
     }
 
     const appointmentsSnapshot = await query.orderBy('scheduledAt', 'asc').get();
+
+    console.log('[DEBUG] getProfessionalAppointments - Found appointments:', appointmentsSnapshot.size);
 
     const appointments = await Promise.all(appointmentsSnapshot.docs.map(async (doc) => {
       const data = doc.data();
