@@ -282,46 +282,29 @@ export const getProfessionalAppointments = async (req, res) => {
     console.log('[DEBUG] getProfessionalAppointments - Professional ID:', req.professional.id);
     console.log('[DEBUG] getProfessionalAppointments - Query params:', { status, date, month });
 
-    let query = db.collection('appointments').where('professionalId', '==', req.professional.id);
+    // Buscar todos os appointments do profissional (evita problema de índice composto do Firestore)
+    const appointmentsSnapshot = await db.collection('appointments')
+      .where('professionalId', '==', req.professional.id)
+      .get();
 
-    if (status) {
-      query = query.where('status', '==', status);
-    }
+    console.log('[DEBUG] getProfessionalAppointments - Total appointments found:', appointmentsSnapshot.size);
 
-    if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      query = query.where('scheduledAt', '>=', startOfDay).where('scheduledAt', '<=', endOfDay);
-    } else if (month) {
-      // Filter by month (format: YYYY-MM)
-      const [year, monthNum] = month.split('-').map(Number);
-      const startOfMonth = new Date(year, monthNum - 1, 1);
-      const endOfMonth = new Date(year, monthNum, 0, 23, 59, 59, 999);
-      
-      console.log('[DEBUG] Month filter:', { startOfMonth, endOfMonth });
-      query = query.where('scheduledAt', '>=', startOfMonth).where('scheduledAt', '<=', endOfMonth);
-    }
-
-    const appointmentsSnapshot = await query.orderBy('scheduledAt', 'asc').get();
-
-    console.log('[DEBUG] getProfessionalAppointments - Found appointments:', appointmentsSnapshot.size);
-
-    const appointments = await Promise.all(appointmentsSnapshot.docs.map(async (doc) => {
+    let appointments = await Promise.all(appointmentsSnapshot.docs.map(async (doc) => {
       const data = doc.data();
       
       // Get user info
       const userDoc = await db.collection('users').doc(data.userId).get();
       const user = userDoc.exists ? userDoc.data() : null;
 
+      const scheduledAt = data.scheduledAt?.toDate ? data.scheduledAt.toDate() : new Date(data.scheduledAt);
+
       return {
         id: doc.id,
+        odUserId: data.userId,
         userId: data.userId,
         userName: user?.name || 'Usuário',
         userEmail: user?.email || '',
-        scheduledAt: data.scheduledAt.toDate(),
+        scheduledAt: scheduledAt,
         duration: data.duration,
         status: data.status,
         notes: data.notes,
@@ -332,11 +315,45 @@ export const getProfessionalAppointments = async (req, res) => {
       };
     }));
 
+    // Filtrar por status se especificado
+    if (status) {
+      appointments = appointments.filter(apt => apt.status === status);
+    }
+
+    // Filtrar por data se especificado
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      appointments = appointments.filter(apt => {
+        const aptDate = new Date(apt.scheduledAt);
+        return aptDate >= startOfDay && aptDate <= endOfDay;
+      });
+    } else if (month) {
+      // Filtrar por mês (formato: YYYY-MM)
+      const [year, monthNum] = month.split('-').map(Number);
+      const startOfMonth = new Date(year, monthNum - 1, 1);
+      const endOfMonth = new Date(year, monthNum, 0, 23, 59, 59, 999);
+      
+      appointments = appointments.filter(apt => {
+        const aptDate = new Date(apt.scheduledAt);
+        return aptDate >= startOfMonth && aptDate <= endOfMonth;
+      });
+    }
+
+    // Ordenar por data
+    appointments.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+
+    console.log('[DEBUG] getProfessionalAppointments - Filtered appointments:', appointments.length);
+
     res.status(200).json({
       success: true,
       data: appointments
     });
   } catch (error) {
+    console.error('[ERROR] getProfessionalAppointments:', error);
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar agendamentos',
