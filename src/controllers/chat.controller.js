@@ -270,28 +270,31 @@ export const getMessages = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Você não faz parte desta conversa' });
     }
 
-    // Buscar mensagens
-    let query = db.collection('messages')
+    // Buscar mensagens - sem orderBy para evitar índice composto
+    const snapshot = await db.collection('messages')
       .where('conversationId', '==', conversationId)
-      .orderBy('createdAt', 'desc')
-      .limit(parseInt(limit));
-
-    if (before) {
-      const beforeDoc = await db.collection('messages').doc(before).get();
-      if (beforeDoc.exists) {
-        query = query.startAfter(beforeDoc);
-      }
-    }
-
-    const snapshot = await query.get();
-    const messages = [];
+      .get();
+    
+    // Ordenar no código JavaScript
+    let allMessages = [];
     snapshot.forEach(doc => {
-      messages.push({
+      const data = doc.data();
+      allMessages.push({
         id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+        ...data,
+        createdAt: data.createdAt?.toDate?.() || data.createdAt
       });
     });
+    
+    // Ordenar por data decrescente e limitar
+    allMessages.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return dateB - dateA;
+    });
+    
+    // Aplicar limite
+    const messages = allMessages.slice(0, parseInt(limit));
 
     // Marcar mensagens como lidas
     const convRef = db.collection('conversations').doc(conversationId);
@@ -312,7 +315,7 @@ export const getMessages = async (req, res) => {
 
     res.json({ 
       success: true, 
-      data: messages.reverse() // Retornar em ordem cronológica
+      data: messages.reverse() // Retornar em ordem cronológica (mais antigas primeiro)
     });
   } catch (error) {
     console.error('Error getting messages:', error);
