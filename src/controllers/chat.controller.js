@@ -351,7 +351,7 @@ export const endConversation = async (req, res) => {
     await convRef.update({
       status: 'closed',
       closedAt: new Date(),
-      closedBy: senderType,
+      closedBy: isUser ? 'user' : 'professional',
       updatedAt: new Date()
     });
 
