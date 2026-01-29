@@ -548,6 +548,29 @@ router.post('/zoom/test', async (req, res) => {
 });
 
 // ==================== SINCRONIZAR ESTATÍSTICAS ====================
+// ==================== LIMPEZA DE DADOS ====================
+router.delete('/appointments/clear-all', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const appointmentsSnapshot = await db.collection('appointments').get();
+    
+    const batch = db.batch();
+    appointmentsSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+    
+    res.json({
+      success: true,
+      message: `${appointmentsSnapshot.size} agendamentos removidos com sucesso`
+    });
+  } catch (error) {
+    console.error('Clear appointments error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao limpar agendamentos' });
+  }
+});
+
 router.post('/sync-forum-stats', async (req, res) => {
   try {
     const db = getFirestore();
