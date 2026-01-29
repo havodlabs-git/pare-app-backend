@@ -437,20 +437,34 @@ function createJitsiMeeting({ topic, startTime }) {
   // Generate a unique room name based on timestamp and random string
   const timestamp = startTime.getTime();
   const randomStr = Math.random().toString(36).substr(2, 9);
-  const roomName = `PareApp-${timestamp}-${randomStr}`;
+  const roomName = `PareApp${timestamp}${randomStr}`;
   
   // Jitsi Meet is completely free and open source
-  // No API configuration needed
-  // Using 8x8.vc which is Jitsi's official hosted service without lobby restrictions
-  // Parameters: config.prejoinPageEnabled=false disables the pre-join screen
-  const baseUrl = 'https://8x8.vc';
-  const joinUrl = `${baseUrl}/${roomName}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+  // Using meet.jit.si - the public Jitsi server without lobby restrictions
+  // This allows anyone to join without waiting for a moderator
+  const baseUrl = 'https://meet.jit.si';
+  
+  // Config parameters:
+  // - prejoinPageEnabled=false: Skip pre-join screen
+  // - startWithAudioMuted=false: Start with audio on
+  // - startWithVideoMuted=false: Start with video on
+  // - disableModeratorIndicator=true: Hide moderator badge
+  // - enableLobby=false: Disable lobby (no waiting room)
+  const configParams = [
+    'config.prejoinPageEnabled=false',
+    'config.startWithAudioMuted=false', 
+    'config.startWithVideoMuted=false',
+    'config.disableModeratorIndicator=true',
+    'config.enableLobbyChat=false'
+  ].join('&');
+  
+  const joinUrl = `${baseUrl}/${roomName}#${configParams}`;
   
   return {
     id: roomName,
     joinUrl: joinUrl,
     startUrl: joinUrl, // Same URL for host and participants in Jitsi
-    password: null // Jitsi rooms are open by default, can be locked in the meeting
+    password: null // Jitsi rooms are open by default
   };
 }
 
