@@ -1,44 +1,85 @@
 import { getFirestore } from '../config/firestore.js';
 
 // Get all posts with pagination and filtering
+// Posts fixos (isPinned=true) aparecem primeiro, ordenados por pinnedOrder
 export const getPosts = async (req, res) => {
   try {
     const db = getFirestore();
-    const { category, limit = 20, startAfter } = req.query;
+    const { category, limit = 20, startAfter, includePinned = 'true' } = req.query;
     
-    let query = db.collection('forum_posts')
+    let posts = [];
+    
+    // Se é a primeira página e deve incluir posts fixos
+    if (!startAfter && includePinned === 'true') {
+      // Buscar posts fixos primeiro
+      let pinnedQuery = db.collection('forum_posts')
+        .where('isPinned', '==', true);
+      
+      if (category && category !== 'all') {
+        pinnedQuery = pinnedQuery.where('category', '==', category);
+      }
+      
+      const pinnedSnapshot = await pinnedQuery.get();
+      const pinnedPosts = [];
+      
+      pinnedSnapshot.forEach(doc => {
+        pinnedPosts.push({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+        });
+      });
+      
+      // Ordenar posts fixos por pinnedOrder
+      pinnedPosts.sort((a, b) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0));
+      posts = pinnedPosts;
+    }
+    
+    // Buscar posts regulares (não fixos)
+    let regularQuery = db.collection('forum_posts')
+      .where('isPinned', '!=', true);
+    
+    // Não podemos usar where com != e outro where com ==, então buscamos todos e filtramos
+    let allPostsQuery = db.collection('forum_posts')
       .orderBy('createdAt', 'desc')
-      .limit(parseInt(limit));
+      .limit(parseInt(limit) + 20); // Buscar mais para compensar os fixos que serão filtrados
     
     if (category && category !== 'all') {
-      query = db.collection('forum_posts')
+      allPostsQuery = db.collection('forum_posts')
         .where('category', '==', category)
         .orderBy('createdAt', 'desc')
-        .limit(parseInt(limit));
+        .limit(parseInt(limit) + 20);
     }
     
     if (startAfter) {
       const startDoc = await db.collection('forum_posts').doc(startAfter).get();
       if (startDoc.exists) {
-        query = query.startAfter(startDoc);
+        allPostsQuery = allPostsQuery.startAfter(startDoc);
       }
     }
     
-    const snapshot = await query.get();
-    const posts = [];
+    const regularSnapshot = await allPostsQuery.get();
+    const regularPosts = [];
     
-    snapshot.forEach(doc => {
-      posts.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
-      });
+    regularSnapshot.forEach(doc => {
+      const data = doc.data();
+      // Filtrar posts fixos (já incluídos acima)
+      if (!data.isPinned) {
+        regularPosts.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.() || data.createdAt
+        });
+      }
     });
+    
+    // Combinar posts fixos + regulares
+    posts = [...posts, ...regularPosts.slice(0, parseInt(limit) - posts.length)];
     
     res.json({
       success: true,
       data: posts,
-      hasMore: posts.length === parseInt(limit)
+      hasMore: regularPosts.length >= parseInt(limit)
     });
   } catch (error) {
     console.error('Error getting posts:', error);

@@ -37,3 +37,4 @@ coverage/
 dist/
 build/
 service-account.json
+src/config/serviceAccountKey.json
