@@ -242,6 +242,42 @@ exports.unbanUser = async (req, res) => {
   }
 };
 
+// Alterar plano do usuário
+exports.updateUserPlan = async (req, res) => {
+  try {
+    const { plan, duration } = req.body; // duration em meses (1, 12, etc)
+    const userId = req.params.id;
+    
+    if (!['free', 'premium', 'elite'].includes(plan)) {
+      return res.status(400).json({ success: false, message: 'Plano inválido' });
+    }
+    
+    // Calcular data de expiração
+    let planExpiresAt = null;
+    if (plan !== 'free' && duration) {
+      planExpiresAt = new Date();
+      planExpiresAt.setMonth(planExpiresAt.getMonth() + parseInt(duration));
+    }
+    
+    await db.query(
+      'UPDATE users SET plan = ?, planExpiresAt = ?, updatedAt = NOW() WHERE id = ?',
+      [plan, planExpiresAt, userId]
+    );
+    
+    // Buscar usuário atualizado
+    const [users] = await db.query('SELECT id, name, email, plan, planExpiresAt FROM users WHERE id = ?', [userId]);
+    
+    res.json({ 
+      success: true, 
+      message: `Plano atualizado para ${plan.toUpperCase()} com sucesso`,
+      data: users[0]
+    });
+  } catch (error) {
+    console.error('Update user plan error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar plano do usuário' });
+  }
+};
+
 // ==================== POSTS DO FÓRUM ====================
 
 exports.getPosts = async (req, res) => {

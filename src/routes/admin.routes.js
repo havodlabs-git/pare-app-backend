@@ -174,6 +174,45 @@ router.post('/users/:id/unban', async (req, res) => {
   }
 });
 
+// Alterar plano do usuário
+router.put('/users/:id/plan', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { plan, duration } = req.body; // duration em meses (1, 12, etc)
+    const userId = req.params.id;
+    
+    if (!['free', 'premium', 'elite'].includes(plan)) {
+      return res.status(400).json({ success: false, message: 'Plano inválido' });
+    }
+    
+    // Calcular data de expiração
+    let planExpiresAt = null;
+    if (plan !== 'free' && duration) {
+      planExpiresAt = new Date();
+      planExpiresAt.setMonth(planExpiresAt.getMonth() + parseInt(duration));
+    }
+    
+    await db.collection('users').doc(userId).update({
+      plan: plan,
+      planExpiresAt: planExpiresAt,
+      updatedAt: new Date()
+    });
+    
+    // Buscar usuário atualizado
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    res.json({ 
+      success: true, 
+      message: `Plano atualizado para ${plan.toUpperCase()} com sucesso`,
+      data: { id: userId, ...userData }
+    });
+  } catch (error) {
+    console.error('Update user plan error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar plano do usuário' });
+  }
+});
+
 // ==================== POSTS DO FÓRUM ====================
 router.get('/posts', async (req, res) => {
   try {
