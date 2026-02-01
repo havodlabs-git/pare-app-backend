@@ -22,6 +22,8 @@ import adminRoutes from './routes/admin.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import stripeWebhookRoutes from './routes/stripe-webhook.routes.js';
 import psychologistPartnerRoutes from './routes/psychologist-partner.routes.js';
+import otpRoutes from './routes/otp.routes.js';
+import { initializeEmailService } from './services/email.service.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +34,9 @@ const PORT = process.env.PORT || 8080;
 
 // Initialize Firestore
 initializeFirestore();
+
+// Initialize Email Service
+initializeEmailService();
 
 // Security middleware - configurado para permitir CORS
 app.use(helmet({
@@ -106,6 +111,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/stripe', stripeWebhookRoutes);
 app.use('/api/psychologist-partner', psychologistPartnerRoutes);
+app.use('/api/otp', otpRoutes);
 
 // 404 handler
 app.use((req, res) => {
