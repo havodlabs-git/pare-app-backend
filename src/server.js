@@ -20,6 +20,7 @@ import appointmentRoutes from './routes/appointment.routes.js';
 import professionalRoutes from './routes/professional.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import chatRoutes from './routes/chat.routes.js';
+import stripeWebhookRoutes from './routes/stripe-webhook.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,9 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 */
 
+// Stripe webhook precisa do raw body ANTES do json parser
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -99,6 +103,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/professionals', professionalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/stripe', stripeWebhookRoutes);
 
 // 404 handler
 app.use((req, res) => {
