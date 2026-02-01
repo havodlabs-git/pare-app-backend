@@ -21,6 +21,7 @@ import professionalRoutes from './routes/professional.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import stripeWebhookRoutes from './routes/stripe-webhook.routes.js';
+import psychologistPartnerRoutes from './routes/psychologist-partner.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -104,6 +105,7 @@ app.use('/api/professionals', professionalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/stripe', stripeWebhookRoutes);
+app.use('/api/psychologist-partner', psychologistPartnerRoutes);
 
 // 404 handler
 app.use((req, res) => {
