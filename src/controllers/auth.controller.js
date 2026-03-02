@@ -172,9 +172,12 @@ export const login = async (req, res) => {
           id: user.id,
           name: user.name,
           email: user.email,
-          plan: user.plan,
+          plan: user.isAdmin ? 'elite' : user.plan, // Admin sempre tem elite
+          isAdmin: user.isAdmin || false,
+          isPsychologist: user.isPsychologist || false,
+          role: user.role || 'user',
           trial: trialInfo,
-          needsUpgrade
+          needsUpgrade: user.isAdmin ? false : needsUpgrade
         },
         token
       }
@@ -216,7 +219,9 @@ export const getMe = async (req, res) => {
       data: {
         user: {
           ...user,
-          isPlanActive,
+          plan: user.isAdmin ? 'elite' : user.plan, // Admin sempre tem elite
+          isPlanActive: user.isAdmin ? true : isPlanActive,
+          needsUpgrade: user.isAdmin ? false : undefined,
           createdAt: user.createdAt.toDate(),
           lastLogin: user.lastLogin?.toDate() || null,
           planExpiresAt: user.planExpiresAt?.toDate() || null

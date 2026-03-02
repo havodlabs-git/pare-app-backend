@@ -287,6 +287,53 @@ router.put('/users/:id/plan', async (req, res) => {
   }
 });
 
+// Alterar role do usuário (admin, psychologist, user)
+router.put('/users/:id/role', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { role } = req.body;
+    const userId = req.params.id;
+
+    if (!['user', 'admin', 'psychologist'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role inválida. Use: user, admin ou psychologist' });
+    }
+
+    const updateData = {
+      role: role,
+      updatedAt: new Date()
+    };
+
+    if (role === 'admin') {
+      // Admin tem acesso total: elite + painel admin + painel psicólogo
+      updateData.isAdmin = true;
+      updateData.isPsychologist = true;
+      updateData.plan = 'elite';
+      updateData.planExpiresAt = null; // Vitalício
+    } else if (role === 'psychologist') {
+      updateData.isAdmin = false;
+      updateData.isPsychologist = true;
+    } else {
+      // user normal
+      updateData.isAdmin = false;
+      updateData.isPsychologist = false;
+    }
+
+    await db.collection('users').doc(userId).update(updateData);
+
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+
+    res.json({
+      success: true,
+      message: `Role atualizada para ${role} com sucesso`,
+      data: { id: userId, ...userData }
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar role do usuário' });
+  }
+});
+
 // ==================== POSTS DO FÓRUM ====================
 router.get('/posts', async (req, res) => {
   try {
