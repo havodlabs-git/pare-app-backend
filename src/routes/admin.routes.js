@@ -645,3 +645,128 @@ router.post('/sync-forum-stats', async (req, res) => {
 });
 
 export default router;
+
+// ==================== VÍCIOS (ADDICTIONS) ====================
+
+router.get('/addictions', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snapshot = await db.collection('addictions').orderBy('createdAt', 'asc').get();
+    const addictions = [];
+    snapshot.forEach(doc => {
+      addictions.push({ id: doc.id, ...doc.data() });
+    });
+    res.json({ success: true, data: { addictions } });
+  } catch (error) {
+    console.error('Get addictions error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar vícios' });
+  }
+});
+
+router.post('/addictions', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { label, icon, color, description, category } = req.body;
+    if (!label) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    const docRef = await db.collection('addictions').add({
+      label, icon: icon || '🔴', color: color || '#ef4444',
+      description: description || '', category: category || 'geral',
+      isActive: true, createdAt: new Date(), updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Vício criado com sucesso', data: { id: docRef.id } });
+  } catch (error) {
+    console.error('Create addiction error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao criar vício' });
+  }
+});
+
+router.put('/addictions/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { label, icon, color, description, category, isActive } = req.body;
+    await db.collection('addictions').doc(req.params.id).update({
+      label, icon, color, description, category, isActive, updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Vício atualizado com sucesso' });
+  } catch (error) {
+    console.error('Update addiction error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar vício' });
+  }
+});
+
+router.delete('/addictions/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    await db.collection('addictions').doc(req.params.id).delete();
+    res.json({ success: true, message: 'Vício removido com sucesso' });
+  } catch (error) {
+    console.error('Delete addiction error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao remover vício' });
+  }
+});
+
+// ==================== HÁBITOS SUGERIDOS (HABITS) ====================
+
+router.get('/habits', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { addiction } = req.query;
+    let query = db.collection('suggested_habits').orderBy('createdAt', 'asc');
+    const snapshot = await query.get();
+    let habits = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (addiction && data.addictionId !== addiction) return;
+      habits.push({ id: doc.id, ...data });
+    });
+    res.json({ success: true, data: { habits } });
+  } catch (error) {
+    console.error('Get habits error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar hábitos' });
+  }
+});
+
+router.post('/habits', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { name, description, category, icon, color, frequency, duration, period, addictionId, tags } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    const docRef = await db.collection('suggested_habits').add({
+      name, description: description || '', category: category || 'geral',
+      icon: icon || '⭐', color: color || '#8b5cf6',
+      frequency: frequency || 3, duration: duration || 30,
+      period: period || 'morning', addictionId: addictionId || null,
+      tags: tags || [], isActive: true, createdAt: new Date(), updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Hábito criado com sucesso', data: { id: docRef.id } });
+  } catch (error) {
+    console.error('Create habit error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao criar hábito' });
+  }
+});
+
+router.put('/habits/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { name, description, category, icon, color, frequency, duration, period, addictionId, tags, isActive } = req.body;
+    await db.collection('suggested_habits').doc(req.params.id).update({
+      name, description, category, icon, color, frequency, duration, period,
+      addictionId, tags, isActive, updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Hábito atualizado com sucesso' });
+  } catch (error) {
+    console.error('Update habit error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar hábito' });
+  }
+});
+
+router.delete('/habits/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    await db.collection('suggested_habits').doc(req.params.id).delete();
+    res.json({ success: true, message: 'Hábito removido com sucesso' });
+  } catch (error) {
+    console.error('Delete habit error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao remover hábito' });
+  }
+});
