@@ -2,10 +2,67 @@ import express from 'express';
 import { protect, protectAdmin } from '../middleware/auth.middleware.js';
 import { getFirestore } from '../config/firestore.js';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// Todas as rotas requerem autenticação de admin
+// ==================== LOGIN ADMIN (rota pública) ====================
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
+    }
+
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@pareapp.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'PareAdmin@2024!';
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+    // Verificar credenciais via variáveis de ambiente
+    if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { id: 'admin-env', email: ADMIN_EMAIL, isAdmin: true },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      return res.json({
+        success: true,
+        message: 'Login realizado com sucesso',
+        data: { token, user: { id: 'admin-env', email: ADMIN_EMAIL, name: 'Administrador', isAdmin: true } }
+      });
+    }
+
+    // Verificar conta com isAdmin: true no Firestore
+    const db = getFirestore();
+    const userSnapshot = await db.collection('users').where('email', '==', email.toLowerCase()).get();
+    if (!userSnapshot.empty) {
+      const userDoc = userSnapshot.docs[0];
+      const user = { id: userDoc.id, ...userDoc.data() };
+      if (user.isAdmin) {
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (isPasswordValid) {
+          const token = jwt.sign(
+            { id: user.id, email: user.email, isAdmin: true },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+          return res.json({
+            success: true,
+            message: 'Login realizado com sucesso',
+            data: { token, user: { id: user.id, email: user.email, name: user.name, isAdmin: true } }
+          });
+        }
+      }
+    }
+
+    return res.status(401).json({ success: false, message: 'Credenciais inválidas ou sem permissão de admin' });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao fazer login' });
+  }
+});
+
+// Todas as rotas abaixo requerem autenticação de admin
 router.use(protect);
 router.use(protectAdmin);
 
@@ -766,6 +823,86 @@ router.delete('/habits/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete habit error:', error);
     res.status(500).json({ success: false, message: 'Erro ao remover hábito' });
+  }
+});
+
+// ==================== MÓDULOS ====================
+
+// Módulos disponíveis (catálogo global gerido pelo admin)
+router.get('/modules', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snapshot = await db.collection('modules_catalog').orderBy('createdAt', 'asc').get();
+    const modules = [];
+    snapshot.forEach(doc => {
+      modules.push({ id: doc.id, ...doc.data() });
+    });
+    // Se não houver módulos no Firestore, retornar os defaults
+    if (modules.length === 0) {
+      const defaults = [
+        { id: 'porn', name: 'Pornografia', description: 'Supere o vício e recupere sua energia', icon: '👁️', color: '#ef4444', category: 'comportamental', isActive: true },
+        { id: 'social', name: 'Redes Sociais', description: 'Recupere seu tempo e foco', icon: '📱', color: '#3b82f6', category: 'digital', isActive: true },
+        { id: 'smoking', name: 'Cigarro', description: 'Livre-se do tabagismo', icon: '🚬', color: '#6b7280', category: 'substância', isActive: true },
+        { id: 'alcohol', name: 'Álcool', description: 'Controle o consumo', icon: '🍺', color: '#f59e0b', category: 'substância', isActive: true },
+        { id: 'gambling', name: 'Jogos de Azar', description: 'Recupere o controle financeiro', icon: '🎰', color: '#8b5cf6', category: 'comportamental', isActive: true },
+        { id: 'shopping', name: 'Compras Compulsivas', description: 'Controle seus gastos', icon: '🛒', color: '#10b981', category: 'comportamental', isActive: true },
+      ];
+      return res.json({ success: true, data: { modules: defaults } });
+    }
+    res.json({ success: true, data: { modules } });
+  } catch (error) {
+    console.error('Get modules error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar módulos' });
+  }
+});
+
+router.post('/modules', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { name, description, icon, color, category, requiredPlan, isActive } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    const docRef = await db.collection('modules_catalog').add({
+      name,
+      description: description || '',
+      icon: icon || '⭐',
+      color: color || '#8b5cf6',
+      category: category || 'comportamental',
+      requiredPlan: requiredPlan || 'free',
+      isActive: isActive !== undefined ? isActive : true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Módulo criado com sucesso', data: { id: docRef.id } });
+  } catch (error) {
+    console.error('Create module error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao criar módulo' });
+  }
+});
+
+router.put('/modules/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { name, description, icon, color, category, requiredPlan, isActive } = req.body;
+    await db.collection('modules_catalog').doc(req.params.id).set({
+      name, description, icon, color, category, requiredPlan,
+      isActive: isActive !== undefined ? isActive : true,
+      updatedAt: new Date()
+    }, { merge: true });
+    res.json({ success: true, message: 'Módulo atualizado com sucesso' });
+  } catch (error) {
+    console.error('Update module error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar módulo' });
+  }
+});
+
+router.delete('/modules/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    await db.collection('modules_catalog').doc(req.params.id).delete();
+    res.json({ success: true, message: 'Módulo removido com sucesso' });
+  } catch (error) {
+    console.error('Delete module error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao remover módulo' });
   }
 });
 

@@ -22,6 +22,18 @@ export const protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
 
+      // Token de admin via variáveis de ambiente (não precisa de Firestore)
+      if (decoded.isAdmin === true && decoded.id === 'admin-env') {
+        req.user = {
+          id: 'admin-env',
+          email: decoded.email,
+          name: 'Administrador',
+          plan: 'elite',
+          isAdmin: true
+        };
+        return next();
+      }
+
       // Get user from Firestore
       const db = getFirestore();
       const userDoc = await db.collection('users').doc(decoded.id).get();
@@ -48,7 +60,8 @@ export const protect = async (req, res, next) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        plan: user.plan
+        plan: user.plan,
+        isAdmin: user.isAdmin || false
       };
 
       next();
@@ -80,7 +93,6 @@ export const restrictTo = (...plans) => {
   };
 };
 
-// Middleware for professional authentication
 // Middleware for admin authentication
 export const protectAdmin = async (req, res, next) => {
   try {
@@ -92,6 +104,12 @@ export const protectAdmin = async (req, res, next) => {
       });
     }
 
+    // Admin via env vars (token especial)
+    if (req.user.isAdmin === true && req.user.id === 'admin-env') {
+      return next();
+    }
+
+    // Admin via Firestore
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(req.user.id).get();
     
