@@ -20,7 +20,6 @@ router.get('/catalog', async (req, res) => {
     const db = getFirestore();
     const snapshot = await db.collection('modules_catalog')
       .where('isActive', '==', true)
-      .orderBy('createdAt', 'asc')
       .get();
 
     const modules = [];
