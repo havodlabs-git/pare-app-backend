@@ -644,8 +644,6 @@ router.post('/sync-forum-stats', async (req, res) => {
   }
 });
 
-export default router;
-
 // ==================== VÍCIOS (ADDICTIONS) ====================
 
 router.get('/addictions', async (req, res) => {
@@ -770,3 +768,5 @@ router.delete('/habits/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao remover hábito' });
   }
 });
+
+export default router;
