@@ -3,6 +3,23 @@ import { protect, protectAdmin } from '../middleware/auth.middleware.js';
 import { getFirestore } from '../config/firestore.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { Storage } from '@google-cloud/storage';
+
+// Configuração do Google Cloud Storage
+const gcsStorage = new Storage({ projectId: 'pare-app-483321' });
+const BUCKET_NAME = 'pare-app-modules-storage';
+const bucket = gcsStorage.bucket(BUCKET_NAME);
+
+// Multer: armazenar em memória para depois enviar ao GCS
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Apenas imagens são permitidas'));
+  }
+});
 
 const router = express.Router();
 
@@ -840,12 +857,12 @@ router.get('/modules', async (req, res) => {
     // Se não houver módulos no Firestore, retornar os defaults
     if (modules.length === 0) {
       const defaults = [
-        { id: 'porn', name: 'Pornografia', description: 'Supere o vício e recupere sua energia', icon: '👁️', color: '#ef4444', category: 'comportamental', isActive: true },
-        { id: 'social', name: 'Redes Sociais', description: 'Recupere seu tempo e foco', icon: '📱', color: '#3b82f6', category: 'digital', isActive: true },
-        { id: 'smoking', name: 'Cigarro', description: 'Livre-se do tabagismo', icon: '🚬', color: '#6b7280', category: 'substância', isActive: true },
-        { id: 'alcohol', name: 'Álcool', description: 'Controle o consumo', icon: '🍺', color: '#f59e0b', category: 'substância', isActive: true },
-        { id: 'gambling', name: 'Jogos de Azar', description: 'Recupere o controle financeiro', icon: '🎰', color: '#8b5cf6', category: 'comportamental', isActive: true },
-        { id: 'shopping', name: 'Compras Compulsivas', description: 'Controle seus gastos', icon: '🛒', color: '#10b981', category: 'comportamental', isActive: true },
+        { id: 'porn', name: 'Pornografia', description: 'Supere o vício e recupere sua energia', icon: '👁️', color: '#ef4444', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/pornography.png' },
+        { id: 'social', name: 'Redes Sociais', description: 'Recupere seu tempo e foco', icon: '📱', color: '#3b82f6', category: 'digital', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/social_media.png' },
+        { id: 'smoking', name: 'Cigarro', description: 'Livre-se do tabagismo', icon: '🚬', color: '#6b7280', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/smoking.png' },
+        { id: 'alcohol', name: 'Álcool', description: 'Controle o consumo', icon: '🍺', color: '#f59e0b', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/alcohol.png' },
+        { id: 'gambling', name: 'Jogos de Azar', description: 'Recupere o controle financeiro', icon: '🎰', color: '#8b5cf6', category: 'comportamental', isActive: true, imageUrl: null },
+        { id: 'shopping', name: 'Compras Compulsivas', description: 'Controle seus gastos', icon: '🛒', color: '#10b981', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/shopping.png' },
       ];
       return res.json({ success: true, data: { modules: defaults } });
     }
@@ -856,10 +873,34 @@ router.get('/modules', async (req, res) => {
   }
 });
 
+// ==================== UPLOAD DE IMAGEM DE MÓDULO ====================
+router.post('/modules/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Nenhuma imagem enviada' });
+    const { moduleId } = req.body;
+    if (!moduleId) return res.status(400).json({ success: false, message: 'moduleId é obrigatório' });
+
+    const ext = req.file.mimetype.split('/')[1] || 'png';
+    const fileName = `modules/${moduleId}_${Date.now()}.${ext}`;
+    const file = bucket.file(fileName);
+
+    await file.save(req.file.buffer, {
+      metadata: { contentType: req.file.mimetype },
+      resumable: false,
+    });
+
+    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${fileName}`;
+    res.json({ success: true, message: 'Imagem carregada com sucesso', data: { imageUrl: publicUrl } });
+  } catch (error) {
+    console.error('Upload image error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao fazer upload da imagem' });
+  }
+});
+
 router.post('/modules', async (req, res) => {
   try {
     const db = getFirestore();
-    const { name, description, icon, color, category, requiredPlan, isActive } = req.body;
+    const { name, description, icon, color, category, requiredPlan, isActive, imageUrl } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
     const docRef = await db.collection('modules_catalog').add({
       name,
@@ -869,6 +910,7 @@ router.post('/modules', async (req, res) => {
       category: category || 'comportamental',
       requiredPlan: requiredPlan || 'free',
       isActive: isActive !== undefined ? isActive : true,
+      imageUrl: imageUrl || null,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -882,10 +924,11 @@ router.post('/modules', async (req, res) => {
 router.put('/modules/:id', async (req, res) => {
   try {
     const db = getFirestore();
-    const { name, description, icon, color, category, requiredPlan, isActive } = req.body;
+    const { name, description, icon, color, category, requiredPlan, isActive, imageUrl } = req.body;
     await db.collection('modules_catalog').doc(req.params.id).set({
       name, description, icon, color, category, requiredPlan,
       isActive: isActive !== undefined ? isActive : true,
+      imageUrl: imageUrl !== undefined ? imageUrl : null,
       updatedAt: new Date()
     }, { merge: true });
     res.json({ success: true, message: 'Módulo atualizado com sucesso' });
