@@ -846,6 +846,15 @@ router.delete('/habits/:id', async (req, res) => {
 // ==================== MÓDULOS ====================
 
 // Módulos disponíveis (catálogo global gerido pelo admin)
+const DEFAULT_MODULES = [
+  { id: 'porn', name: 'Pornografia', description: 'Supere o vício e recupere sua energia', icon: '👁️', color: '#ef4444', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/pornography.png' },
+  { id: 'social', name: 'Redes Sociais', description: 'Recupere seu tempo e foco', icon: '📱', color: '#3b82f6', category: 'digital', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/social_media.png' },
+  { id: 'smoking', name: 'Cigarro', description: 'Livre-se do tabagismo', icon: '🚬', color: '#6b7280', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/smoking.png' },
+  { id: 'alcohol', name: 'Álcool', description: 'Controle o consumo', icon: '🍺', color: '#f59e0b', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/alcohol.png' },
+  { id: 'gambling', name: 'Jogos de Azar', description: 'Recupere o controle financeiro', icon: '🎰', color: '#8b5cf6', category: 'comportamental', isActive: true, imageUrl: null },
+  { id: 'shopping', name: 'Compras Compulsivas', description: 'Controle seus gastos', icon: '🛒', color: '#10b981', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/shopping.png' },
+];
+
 router.get('/modules', async (req, res) => {
   try {
     const db = getFirestore();
@@ -854,18 +863,19 @@ router.get('/modules', async (req, res) => {
     snapshot.forEach(doc => {
       modules.push({ id: doc.id, ...doc.data() });
     });
-    // Se não houver módulos no Firestore, retornar os defaults
+
+    // Se não houver módulos no Firestore, persistir os defaults e retorná-los
     if (modules.length === 0) {
-      const defaults = [
-        { id: 'porn', name: 'Pornografia', description: 'Supere o vício e recupere sua energia', icon: '👁️', color: '#ef4444', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/pornography.png' },
-        { id: 'social', name: 'Redes Sociais', description: 'Recupere seu tempo e foco', icon: '📱', color: '#3b82f6', category: 'digital', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/social_media.png' },
-        { id: 'smoking', name: 'Cigarro', description: 'Livre-se do tabagismo', icon: '🚬', color: '#6b7280', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/smoking.png' },
-        { id: 'alcohol', name: 'Álcool', description: 'Controle o consumo', icon: '🍺', color: '#f59e0b', category: 'substância', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/alcohol.png' },
-        { id: 'gambling', name: 'Jogos de Azar', description: 'Recupere o controle financeiro', icon: '🎰', color: '#8b5cf6', category: 'comportamental', isActive: true, imageUrl: null },
-        { id: 'shopping', name: 'Compras Compulsivas', description: 'Controle seus gastos', icon: '🛒', color: '#10b981', category: 'comportamental', isActive: true, imageUrl: 'https://storage.googleapis.com/pare-app-modules-storage/modules/shopping.png' },
-      ];
-      return res.json({ success: true, data: { modules: defaults } });
+      const now = new Date();
+      const batch = db.batch();
+      DEFAULT_MODULES.forEach(mod => {
+        const ref = db.collection('modules_catalog').doc(mod.id);
+        batch.set(ref, { ...mod, createdAt: now, updatedAt: now });
+      });
+      await batch.commit();
+      return res.json({ success: true, data: { modules: DEFAULT_MODULES } });
     }
+
     res.json({ success: true, data: { modules } });
   } catch (error) {
     console.error('Get modules error:', error);
