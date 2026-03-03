@@ -785,12 +785,15 @@ router.get('/addictions', async (req, res) => {
 router.post('/addictions', async (req, res) => {
   try {
     const db = getFirestore();
-    const { label, icon, color, description, category } = req.body;
-    if (!label) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    const { name, label, icon, color, description, category, moduleId, imageUrl } = req.body;
+    const addictionName = name || label;
+    if (!addictionName) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
     const docRef = await db.collection('addictions').add({
-      label, icon: icon || '🔴', color: color || '#ef4444',
+      name: addictionName, label: addictionName,
+      icon: icon || '🔴', color: color || '#ef4444',
       description: description || '', category: category || 'geral',
-      isActive: true, createdAt: new Date(), updatedAt: new Date()
+      moduleId: moduleId || null, imageUrl: imageUrl || null,
+      active: true, isActive: true, createdAt: new Date(), updatedAt: new Date()
     });
     res.json({ success: true, message: 'Vício criado com sucesso', data: { id: docRef.id } });
   } catch (error) {
@@ -802,10 +805,18 @@ router.post('/addictions', async (req, res) => {
 router.put('/addictions/:id', async (req, res) => {
   try {
     const db = getFirestore();
-    const { label, icon, color, description, category, isActive } = req.body;
-    await db.collection('addictions').doc(req.params.id).update({
-      label, icon, color, description, category, isActive, updatedAt: new Date()
-    });
+    const { name, label, icon, color, description, category, isActive, moduleId, imageUrl } = req.body;
+    const addictionName = name || label;
+    const updateData = { updatedAt: new Date() };
+    if (addictionName !== undefined) { updateData.name = addictionName; updateData.label = addictionName; }
+    if (icon !== undefined) updateData.icon = icon;
+    if (color !== undefined) updateData.color = color;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (isActive !== undefined) { updateData.isActive = isActive; updateData.active = isActive; }
+    if (moduleId !== undefined) updateData.moduleId = moduleId;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    await db.collection('addictions').doc(req.params.id).update(updateData);
     res.json({ success: true, message: 'Vício atualizado com sucesso' });
   } catch (error) {
     console.error('Update addiction error:', error);

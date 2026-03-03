@@ -57,6 +57,7 @@ router.get('/addictions', async (req, res) => {
           icon: data.icon || '⭐',
           imageUrl: data.imageUrl || null,
           category: data.category || 'comportamental',
+          moduleId: data.moduleId || null,
         });
       }
     });
