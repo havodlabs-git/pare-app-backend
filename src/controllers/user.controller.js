@@ -286,3 +286,70 @@ export const getDashboard = async (req, res) => {
     });
   }
 };
+
+// @desc    Get user app data (onboarding, habits, seasons, logs)
+// @route   GET /api/users/app-data
+// @access  Private
+export const getAppData = async (req, res) => {
+  try {
+    const db = getFirestore();
+    const docRef = db.collection('userAppData').doc(req.user.id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(200).json({
+        success: true,
+        data: null
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: doc.data().appData || null
+    });
+  } catch (error) {
+    console.error('Error getting app data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar dados do app',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Save user app data (onboarding, habits, seasons, logs)
+// @route   PUT /api/users/app-data
+// @access  Private
+export const saveAppData = async (req, res) => {
+  try {
+    const { appData } = req.body;
+
+    if (!appData) {
+      return res.status(400).json({
+        success: false,
+        message: 'appData é obrigatório'
+      });
+    }
+
+    const db = getFirestore();
+    const docRef = db.collection('userAppData').doc(req.user.id);
+
+    await docRef.set({
+      appData,
+      userId: req.user.id,
+      updatedAt: new Date()
+    }, { merge: true });
+
+    res.status(200).json({
+      success: true,
+      message: 'Dados do app salvos com sucesso'
+    });
+  } catch (error) {
+    console.error('Error saving app data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao salvar dados do app',
+      error: error.message
+    });
+  }
+};

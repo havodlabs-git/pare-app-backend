@@ -5,7 +5,9 @@ import {
   changePassword,
   updatePlan,
   deleteAccount,
-  getDashboard
+  getDashboard,
+  getAppData,
+  saveAppData
 } from '../controllers/user.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
@@ -19,6 +21,10 @@ router.get('/dashboard', getDashboard);
 router.route('/profile')
   .get(getProfile)
   .put(updateProfile);
+
+router.route('/app-data')
+  .get(getAppData)
+  .put(saveAppData);
 
 router.put('/password', changePassword);
 router.put('/plan', updatePlan);
