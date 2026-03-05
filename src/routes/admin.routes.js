@@ -79,6 +79,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ==================== ROTA PÚBLICA (sem auth) ====================
+// Endpoint público para o frontend consultar feature flags
+router.get('/public/feature-flags', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('settings').doc('feature_flags').get();
+    const defaults = {
+      avatarEspelhoEnabled: true,
+    };
+    const flags = doc.exists ? { ...defaults, ...doc.data() } : defaults;
+    delete flags.updatedAt;
+    res.json({ success: true, data: { flags } });
+  } catch (error) {
+    console.error('Get public feature flags error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar feature flags' });
+  }
+});
+
 // Todas as rotas abaixo requerem autenticação de admin
 router.use(protect);
 router.use(protectAdmin);
@@ -1014,6 +1032,42 @@ router.delete('/modules/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete module error:', error);
     res.status(500).json({ success: false, message: 'Erro ao remover módulo' });
+  }
+});
+
+// ==================== FEATURE FLAGS ====================
+
+router.get('/feature-flags', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('settings').doc('feature_flags').get();
+    const defaults = {
+      avatarEspelhoEnabled: true,
+    };
+    const flags = doc.exists ? { ...defaults, ...doc.data() } : defaults;
+    delete flags.updatedAt;
+    res.json({ success: true, data: { flags } });
+  } catch (error) {
+    console.error('Get feature flags error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar feature flags' });
+  }
+});
+
+router.put('/feature-flags', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { flags } = req.body;
+    if (!flags || typeof flags !== 'object') {
+      return res.status(400).json({ success: false, message: 'Flags inválidas' });
+    }
+    await db.collection('settings').doc('feature_flags').set({
+      ...flags,
+      updatedAt: new Date()
+    }, { merge: true });
+    res.json({ success: true, message: 'Feature flags atualizadas com sucesso' });
+  } catch (error) {
+    console.error('Update feature flags error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar feature flags' });
   }
 });
 
