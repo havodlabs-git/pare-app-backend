@@ -23,6 +23,7 @@ import chatRoutes from './routes/chat.routes.js';
 import stripeWebhookRoutes from './routes/stripe-webhook.routes.js';
 import psychologistPartnerRoutes from './routes/psychologist-partner.routes.js';
 import otpRoutes from './routes/otp.routes.js';
+import habitsRoutes from './routes/habits.routes.js';
 import { initializeEmailService } from './services/email.service.js';
 
 // Load environment variables
@@ -112,6 +113,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/stripe', stripeWebhookRoutes);
 app.use('/api/psychologist-partner', psychologistPartnerRoutes);
 app.use('/api/otp', otpRoutes);
+app.use('/api/habits', habitsRoutes);
 
 // 404 handler
 app.use((req, res) => {
