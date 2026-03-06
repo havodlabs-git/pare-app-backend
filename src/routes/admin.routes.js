@@ -1035,6 +1035,124 @@ router.delete('/modules/:id', async (req, res) => {
   }
 });
 
+// ==================== MENSAGENS MOTIVACIONAIS ====================
+
+// GET público — usado pelo frontend para buscar mensagens ativas
+router.get('/public/motivational-quotes', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('motivational_quotes').where('isActive', '==', true).get();
+    if (snap.empty) {
+      return res.json({ success: true, data: { quotes: [] } });
+    }
+    const quotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, data: { quotes } });
+  } catch (error) {
+    console.error('Get public quotes error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar mensagens' });
+  }
+});
+
+// GET admin — lista todas as mensagens
+router.get('/motivational-quotes', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('motivational_quotes').orderBy('createdAt', 'desc').get();
+    const quotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, data: { quotes } });
+  } catch (error) {
+    console.error('Get quotes error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar mensagens' });
+  }
+});
+
+// POST — criar nova mensagem
+router.post('/motivational-quotes', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { text, author, category } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Texto obrigatório' });
+    }
+    const docRef = await db.collection('motivational_quotes').add({
+      text: text.trim(),
+      author: author || null,
+      category: category || 'geral',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    res.json({ success: true, message: 'Mensagem criada com sucesso', data: { id: docRef.id } });
+  } catch (error) {
+    console.error('Create quote error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao criar mensagem' });
+  }
+});
+
+// PUT — editar mensagem
+router.put('/motivational-quotes/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { text, author, category, isActive } = req.body;
+    await db.collection('motivational_quotes').doc(req.params.id).set({
+      text, author: author || null, category: category || 'geral',
+      isActive: isActive !== undefined ? isActive : true,
+      updatedAt: new Date()
+    }, { merge: true });
+    res.json({ success: true, message: 'Mensagem atualizada com sucesso' });
+  } catch (error) {
+    console.error('Update quote error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar mensagem' });
+  }
+});
+
+// DELETE — remover mensagem
+router.delete('/motivational-quotes/:id', async (req, res) => {
+  try {
+    const db = getFirestore();
+    await db.collection('motivational_quotes').doc(req.params.id).delete();
+    res.json({ success: true, message: 'Mensagem removida com sucesso' });
+  } catch (error) {
+    console.error('Delete quote error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao remover mensagem' });
+  }
+});
+
+// POST — seed inicial (popular com as frases padrão se a coleção estiver vazia)
+router.post('/motivational-quotes/seed', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('motivational_quotes').limit(1).get();
+    if (!snap.empty) {
+      return res.json({ success: true, message: 'Coleção já tem dados, seed ignorado' });
+    }
+    const defaultQuotes = [
+      'A disciplina é a ponte entre objetivos e realizações.',
+      'Cada dia sem ceder é uma vitória que ninguém pode tirar de você.',
+      'Você é mais forte do que seus impulsos.',
+      'O desconforto temporário leva à força permanente.',
+      'Sua mente é poderosa. Quando você a preenche com pensamentos positivos, sua vida começará a mudar.',
+      'Não é sobre perfeição, é sobre progresso.',
+      'O sucesso é a soma de pequenos esforços repetidos dia após dia.',
+      'Você não precisa ser grande para começar, mas precisa começar para ser grande.',
+      'A mudança acontece quando a dor de permanecer o mesmo é maior que a dor da mudança.',
+      'Cada recomeço é uma nova oportunidade de fazer melhor.',
+      'Sua jornada importa mais do que o destino.',
+      'Força não vem do que você pode fazer. Vem de superar as coisas que você pensou que não poderia.',
+    ];
+    const batch = db.batch();
+    defaultQuotes.forEach(text => {
+      const ref = db.collection('motivational_quotes').doc();
+      batch.set(ref, { text, author: null, category: 'geral', isActive: true, createdAt: new Date(), updatedAt: new Date() });
+    });
+    await batch.commit();
+    res.json({ success: true, message: `${defaultQuotes.length} mensagens criadas com sucesso` });
+  } catch (error) {
+    console.error('Seed quotes error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao popular mensagens' });
+  }
+});
+
 // ==================== FEATURE FLAGS ====================
 
 router.get('/feature-flags', async (req, res) => {
