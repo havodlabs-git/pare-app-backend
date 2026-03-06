@@ -9,12 +9,12 @@ router.get('/community', async (req, res) => {
   try {
     const db = getFirestore();
     const snap = await db.collection('community_habits')
-      .where('isActive', '==', true)
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
-
-    const habits = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Filtrar no cliente para evitar necessidade de índice composto
+    const allHabits = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const habits = allHabits.filter(h => h.isActive !== false);
     res.json({ success: true, data: { habits } });
   } catch (error) {
     console.error('Get community habits error:', error);
