@@ -97,6 +97,22 @@ router.get('/public/feature-flags', async (req, res) => {
   }
 });
 
+// Endpoint público — mensagens motivacionais ativas (sem autenticação)
+router.get('/public/motivational-quotes', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('motivational_quotes').where('isActive', '==', true).get();
+    if (snap.empty) {
+      return res.json({ success: true, data: { quotes: [] } });
+    }
+    const quotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, data: { quotes } });
+  } catch (error) {
+    console.error('Get public quotes error:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar mensagens' });
+  }
+});
+
 // Todas as rotas abaixo requerem autenticação de admin
 router.use(protect);
 router.use(protectAdmin);
